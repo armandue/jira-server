@@ -1,8 +1,10 @@
 package com.ubiest.qing.Jira.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@CrossOrigin
 @RestController
 public class Backdoor {
 	@RequestMapping("/ping")
@@ -12,6 +14,6 @@ public class Backdoor {
 	
 	@RequestMapping("/version")
 	public String version() {
-		return "2.6";
+		return "2.8";
 	}
 }

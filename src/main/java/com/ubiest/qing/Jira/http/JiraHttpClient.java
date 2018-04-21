@@ -1,7 +1,6 @@
 package com.ubiest.qing.Jira.http;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -38,12 +37,13 @@ public class JiraHttpClient {
 	}
 	
 	private void setupRestTemplate(User user, int requestTimeout) {
+		log.info("Set up rest template for user {}", user);
 		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
 		factory.setConnectTimeout(requestTimeout);
 		factory.setReadTimeout(requestTimeout);
 		restTemplate = new RestTemplate(factory);
-		restTemplate.getInterceptors().add(new BasicAuthorizationInterceptor(user.getUsername(),
-				user.getPassword()));
+		restTemplate.getInterceptors()
+			.add(new BasicAuthorizationInterceptor(user.getUsername(), user.getPassword()));
 	}
 	
 	public List<Worklog> retrieveWorklogsBetween(LocalDate from, LocalDate to) throws JiraHttpException {
@@ -52,11 +52,10 @@ public class JiraHttpClient {
 			String url = generateWorklogUrl(from, to, this.user.getUsername());
 			log.info("Url: " + url);
 			ResponseEntity<Worklog[]> response = restTemplate.getForEntity(url, Worklog[].class);
-			return new ArrayList<>(Arrays.asList(response.getBody()));
+			return Arrays.asList(response.getBody());
 		} else {
-			throw new JiraHttpException("Date error");
+			throw new JiraHttpException("Date error from " + from.toString() + " to " + to.toString());
 		}
-
 	}
 
 	private String generateWorklogUrl(LocalDate from, LocalDate to, String username) {

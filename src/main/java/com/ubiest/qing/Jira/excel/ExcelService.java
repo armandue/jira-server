@@ -38,11 +38,11 @@ public class ExcelService {
 		Sheet sheet;
 		sheet = workbook.createSheet("Timesheet");
 		
-		Font boldFont = workbook.createFont();
-		boldFont.setBold(true);
+		Font headerFont = workbook.createFont();
+		headerFont.setBold(true);
 		
 		CellStyle headerCellStyle = workbook.createCellStyle();
-		headerCellStyle.setFont(boldFont);
+		headerCellStyle.setFont(headerFont);
 		headerCellStyle.setAlignment(HorizontalAlignment.CENTER);
 		
 		CellStyle alignCellStyle = workbook.createCellStyle();
@@ -151,6 +151,10 @@ public class ExcelService {
 		sumFormula = createSumFormula(9, rowNum, 'C');
 		cell.setCellFormula(sumFormula);
 		cell.setCellStyle(numberStyle);
+		
+		for (int i = 0; i < COLUMN_SIZE; i++) {
+			sheet.autoSizeColumn(i);
+		}
 		
 		return workbook;
 	}

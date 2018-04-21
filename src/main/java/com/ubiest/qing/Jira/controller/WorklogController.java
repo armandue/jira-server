@@ -2,7 +2,6 @@ package com.ubiest.qing.Jira.controller;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +11,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -30,6 +30,7 @@ import com.ubiest.qing.Jira.worklog.enums.WorklogModel;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@CrossOrigin
 @RestController
 public class WorklogController {
 	
@@ -45,65 +46,53 @@ public class WorklogController {
 			@RequestParam(value="to", required=false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
 			@RequestBody(required=true) User user,
 			@RequestParam WorklogModel worklogModel,
-			HttpServletResponse response) throws IOException {
+			HttpServletResponse response) throws IOException, JiraHttpException {
 		
-		log.info("Generate worklog file for {} from {} to {} with model {}", user.getUsername(), from, to, worklogModel);
-		String fileName = user.getUsername() + "-" + from.getMonth().toString() + ".xlsx";
+		log.info("Generate worklog file for {} from {} to {} with model {}",
+				user.getUsername(), from, to, worklogModel);
 		
-		response.setContentType("application/vnd.ms-excel");
-		response.setHeader("Content-disposition", "attachment; filename=" + fileName);
+		response = configureExcel(from, user, response);
 		
-		WorklogService logResource = worklogFactory.getWorklogResource(worklogModel);
+		WorklogService worklogService = worklogFactory.getWorklogResource(worklogModel);
 		JiraHttpClient client = new JiraHttpClient(user);
-		
-		List<Worklog> logs = new ArrayList<>();
-		
-		try {
 			
-			if(to == null) {
-				to = LocalDate.now();
-			}
-			
-			logs = client.retrieveWorklogsBetween(from, to);
-		} catch (JiraHttpException e) {
-			e.printStackTrace();
+		if(to == null) {
+			to = LocalDate.now();
 		}
 		
-		for (Worklog log : logs) {
-			logResource.addWorklog(log);
-		}
+		List<Worklog> logs = client.retrieveWorklogsBetween(from, to);
 		
-		Workbook workbook = excelService.createWorklogExcelFile(logResource, user, from, to);
+		worklogService.addWorklogs(logs);
+
+		Workbook workbook = excelService.createWorklogExcelFile(worklogService, user, from, to);
 		workbook.write(response.getOutputStream());
 	}
-	
+
 	@RequestMapping(method=RequestMethod.POST, value="worklog")
 	public Map<LocalDate, Integer> getWorklogs(
 			@RequestParam(value="from") @DateTimeFormat(iso = ISO.DATE) LocalDate from,
 			@RequestParam(value="to", required=false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
-			@RequestBody(required=true) User user) throws IOException {
+			@RequestBody(required=true) User user) throws IOException, JiraHttpException {
 		
 		log.info("Retreive worklogs for {} from {} to {}", user.getUsername(), from, to);
-		WorklogService logResource = worklogFactory.getWorklogResource(WorklogModel.EXACT);
+		WorklogService worklogService = worklogFactory.getWorklogResource(WorklogModel.EXACT);
 		JiraHttpClient client = new JiraHttpClient(user);
 		
-		List<Worklog> logs = new ArrayList<>();
-		
-		try {
-			
-			if(to == null) {
-				to = LocalDate.now();
-			}
-			
-			logs = client.retrieveWorklogsBetween(from, to);
-		} catch (JiraHttpException e) {
-			e.printStackTrace();
+		if(to == null) {
+			to = LocalDate.now();
 		}
 		
-		for (Worklog log : logs) {
-			logResource.addWorklog(log);
-		}
+		List<Worklog> logs = client.retrieveWorklogsBetween(from, to);
 		
-		return logResource.getWorklogHours();
+		worklogService.addWorklogs(logs);
+		
+		return worklogService.getWorklogHours();
+	}
+	
+	private HttpServletResponse configureExcel(LocalDate startDate, User user, HttpServletResponse response) {
+		String fileName = user.getUsername() + "-" + startDate.getMonth().toString() + ".xlsx";
+		response.setContentType("application/vnd.ms-excel");
+		response.setHeader("Content-disposition", "attachment; filename=" + fileName);
+		return response;
 	}
 }
