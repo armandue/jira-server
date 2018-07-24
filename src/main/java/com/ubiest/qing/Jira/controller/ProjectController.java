@@ -49,12 +49,12 @@ public class ProjectController {
 			username = accountService.createTestUsername();
 			bearerToken = accountService.createTestBearToken();
 		}
-			
-		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		
 		if(to == null) {
 			to = LocalDate.now();
 		}
+			
+		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		
 		List<ProjectResource> projectResources = projectService.retrieveProjectResourcesFrom(client, from, to);
         

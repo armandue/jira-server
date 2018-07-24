@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -52,28 +53,26 @@ public class WorklogController {
 			@RequestParam WorklogModel worklogModel,
 			HttpServletResponse response) throws IOException, JiraHttpException {
 		
+		log.info("Generate worklog file for {} from {} to {} with model {}",
+				username, from, to, worklogModel);
+		
 		if (worklogModel == WorklogModel.TEST) {
 			username = accountService.createTestUsername();
 			bearerToken = accountService.createTestBearToken();
 		}
 		
-		log.info("Generate worklog file for {} from {} to {} with model {}",
-				username, from, to, worklogModel);
-		
-		response = excelService.configureExcel(from, username, response);
-		
-		WorklogHandler worklogService = worklogFactory.getWorklogResource(worklogModel);
-		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
-			
 		if(to == null) {
 			to = LocalDate.now();
 		}
 		
+		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		List<Worklog> logs = client.retrieveWorklogsBetween(from, to);
+		WorklogHandler handler = worklogFactory.getWorklogResource(worklogModel);
+		handler.addWorklogs(logs);
 		
-		worklogService.addWorklogs(logs);
-
-		Workbook workbook = excelService.createWorklogExcelFile(worklogService, username, from, to);
+		Workbook workbook = excelService.createWorklogExcelFile(handler, username, from, to);
+		response = excelService.configureExcel(from, username, response);
+		
 		workbook.write(response.getOutputStream());
 	}
 
@@ -86,22 +85,20 @@ public class WorklogController {
 		
 		log.info("Retreive worklogs for {} from {} to {}", username, from, to);
 		
-		if (username == null || username.length() == 0) {
+		if (Objects.isNull(username)) {
 			username = accountService.createTestUsername();
 			bearerToken = accountService.createTestBearToken();
 		}
-		
-		WorklogHandler worklogService = worklogFactory.getWorklogResource(WorklogModel.EXACT);
-		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		
 		if(to == null) {
 			to = LocalDate.now();
 		}
 		
+		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		List<Worklog> logs = client.retrieveWorklogsBetween(from, to);
+		WorklogHandler handler = worklogFactory.getWorklogResource(WorklogModel.EXACT);
+		handler.addWorklogs(logs);
 		
-		worklogService.addWorklogs(logs);
-		
-		return worklogService.getWorklogHours();
+		return handler.getWorklogHours();
 	}
 }

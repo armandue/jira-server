@@ -74,7 +74,7 @@ public class JiraHttpClient {
 	
 	private HttpEntity<String> createBasicAuth() {
 		HttpHeaders headers = new HttpHeaders();
-		headers.add("Authorization", "Basic " + "cWluZy50aWFuQHRhcmdhdGVsZW1hdGljcy5jb206cXdlMTA3NjQx");
+		headers.add("Authorization", "Basic " + "test");
 		HttpEntity<String> entity = new HttpEntity<>(null, headers);
 		return entity;
 	}

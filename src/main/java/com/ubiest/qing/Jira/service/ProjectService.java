@@ -42,7 +42,7 @@ public class ProjectService {
 	}
 	
 	private List<ProjectResource> convertFrom(List<Worklog> worklogs) {
-		Map<Long, Map<Issue, List<Worklog>>> issueMap = sorByProjectIdAndByIssue(worklogs);
+		Map<Long, Map<Issue, List<Worklog>>> issueMap = sortByProjectIdAndByIssue(worklogs);
 		return convertToProjectResources(issueMap);
 	}
 
@@ -67,7 +67,7 @@ public class ProjectService {
 		return projectResources;
 	}
 
-	private Map<Long, Map<Issue, List<Worklog>>> sorByProjectIdAndByIssue(List<Worklog> worklogs) {
+	private Map<Long, Map<Issue, List<Worklog>>> sortByProjectIdAndByIssue(List<Worklog> worklogs) {
 		return worklogs.stream()
 			.collect(Collectors.groupingBy(log -> log.getIssue().getProjectId(),
 					Collectors.groupingBy(log -> log.getIssue())) 
