@@ -6,7 +6,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @CrossOrigin
 @RestController
+@RequestMapping("/backdoor")
 public class Backdoor {
+	
 	@RequestMapping("/ping")
 	public String getPong() {
 		return "Qing is great.";
@@ -14,6 +16,6 @@ public class Backdoor {
 	
 	@RequestMapping("/version")
 	public String version() {
-		return "2.8";
+		return "3.0";
 	}
 }

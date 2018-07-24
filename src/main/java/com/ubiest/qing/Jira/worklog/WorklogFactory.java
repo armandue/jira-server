@@ -10,15 +10,16 @@ import com.ubiest.qing.Jira.worklog.enums.WorklogModel;
 @Service
 public class WorklogFactory {
 	
-	private Map<WorklogModel, WorklogService> worklogServices = new HashMap<>();
+	private Map<WorklogModel, WorklogHandler> worklogHandlers = new HashMap<>();
 	
 	private void setup() {
-		worklogServices.put(WorklogModel.DEFAULT, new DefaultWorklogService());
-		worklogServices.put(WorklogModel.EXACT, new ExactWorklogService());
+		worklogHandlers.put(WorklogModel.DEFAULT, new DefaultWorklogHandler());
+		worklogHandlers.put(WorklogModel.EXACT, new ExactWorklogHandler());
+		worklogHandlers.put(WorklogModel.TEST, new ExactWorklogHandler());
 	}
 	
-	public WorklogService getWorklogResource(WorklogModel model) {
+	public WorklogHandler getWorklogResource(WorklogModel model) {
 		setup();
-		return this.worklogServices.get(model);
+		return this.worklogHandlers.get(model);
 	}
 }

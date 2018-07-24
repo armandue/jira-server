@@ -9,13 +9,13 @@ import com.ubiest.qing.Jira.entity.Worklog;
 
 import lombok.Data;
 @Data
-public class DefaultWorklogService implements WorklogService{
+public class DefaultWorklogHandler implements WorklogHandler{
 	
 	public static final int DEFAULT_WORK_HOUR = 8 * 60 * 60;
 	
 	private Map<LocalDate, Integer> worklogHours;
 	
-	public DefaultWorklogService () {
+	public DefaultWorklogHandler () {
 		worklogHours = new HashMap<LocalDate, Integer>();
 	}
 	

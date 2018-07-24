@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.format.TextStyle;
 import java.util.Locale;
 
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -17,8 +19,7 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
-import com.ubiest.qing.Jira.entity.User;
-import com.ubiest.qing.Jira.worklog.WorklogService;
+import com.ubiest.qing.Jira.worklog.WorklogHandler;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,12 +29,19 @@ public class ExcelService {
 	
 	private final static short COLUMN_SIZE = 7;
 	
-	public Workbook createWorklogExcelFile(WorklogService worklogResource,
-			User user, LocalDate from, LocalDate to) throws IOException {
+	public HttpServletResponse configureExcel(LocalDate startDate, String username, HttpServletResponse response) {
+		String fileName = username + "-" + startDate.getMonth().toString() + ".xlsx";
+		response.setContentType("application/vnd.ms-excel");
+		response.setHeader("Content-disposition", "attachment; filename=" + fileName);
+		return response;
+	}
+	
+	public Workbook createWorklogExcelFile(WorklogHandler worklogResource,
+			String username, LocalDate from, LocalDate to) throws IOException {
 		
 		Workbook workbook = new XSSFWorkbook();
 		
-		log.info("Creating timesheet for user {} at month {}", user.getUsername(), from.getMonth().toString());
+		log.info("Creating timesheet for user {} at month {}", username, from.getMonth().toString());
 		
 		Sheet sheet;
 		sheet = workbook.createSheet("Timesheet");
@@ -53,10 +61,67 @@ public class ExcelService {
 		numberStyle.setAlignment(HorizontalAlignment.CENTER);
 		numberStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00"));
 		
-		Cell cell;
-		Row row;
 		int rowNum = 1;
 		
+		rowNum = createSheetTitle(username, from, sheet, headerCellStyle, alignCellStyle, rowNum);
+		
+		rowNum = createSheetBody(worklogResource, from, to, sheet, alignCellStyle, numberStyle, rowNum);
+		
+		createSheetFooter(sheet, alignCellStyle, numberStyle, rowNum);
+		
+		for (int i = 0; i < COLUMN_SIZE; i++) {
+			sheet.autoSizeColumn(i);
+		}
+		
+		return workbook;
+	}
+
+	private void createSheetFooter(Sheet sheet, CellStyle alignCellStyle, CellStyle numberStyle, int rowNum) {
+		Cell cell;
+		Row row;
+		row = sheet.createRow(rowNum + 1);
+		createCellInSheet(row, 0, "SUM", alignCellStyle);
+		
+		cell = row.createCell(1);
+		
+		String sumFormula = createSumFormula(9, rowNum, 'B');
+		cell.setCellFormula(sumFormula);
+		cell.setCellStyle(numberStyle);
+		
+		cell = row.createCell(2);
+		
+		sumFormula = createSumFormula(9, rowNum, 'C');
+		cell.setCellFormula(sumFormula);
+		cell.setCellStyle(numberStyle);
+	}
+
+	private int createSheetBody(WorklogHandler worklogResource, LocalDate from, LocalDate to, Sheet sheet,
+			CellStyle alignCellStyle, CellStyle numberStyle, int rowNum) {
+		Row row;
+		LocalDate instant = from;
+		
+		while(!instant.isAfter(to)) {
+			row = sheet.createRow(rowNum);
+			Integer seconds = worklogResource.getWorklogHours().get(instant);
+			String date = instant.getDayOfMonth() + " " + 
+					instant.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toString();
+			
+			createCellInSheet(row, 0, date, alignCellStyle);
+			
+			if (seconds != null) {
+				double hours = convertToHour(seconds);
+				createCellInSheet(row, 1, hours, numberStyle);
+			}
+			
+			instant = instant.plusDays(1);
+			rowNum ++;
+		}
+		return rowNum;
+	}
+
+	private int createSheetTitle(String username, LocalDate from, Sheet sheet, CellStyle headerCellStyle,
+			CellStyle alignCellStyle, int rowNum) {
+		Row row;
 		row = sheet.createRow(rowNum);
 		String companyName = "TARGA INFOMOBILITY SRL";
 		createCellInSheet(row, 0, companyName, headerCellStyle);
@@ -81,7 +146,7 @@ public class ExcelService {
 		rowNum ++;
 		
 		row = sheet.createRow(rowNum);
-		createCellInSheet(row, 0, user.getUsername(), alignCellStyle);
+		createCellInSheet(row, 0, username, alignCellStyle);
 		sheet.addMergedRegion(new CellRangeAddress(5, 5, 4, 6));
 		
 		String period = from.getMonth().toString() + " " + from.getYear();
@@ -117,46 +182,7 @@ public class ExcelService {
 		createCellInSheet(row, 6, "MALATTIA", alignCellStyle);
 		
 		rowNum ++;
-		
-		LocalDate instant = from;
-		
-		while(!instant.isAfter(to)) {
-			row = sheet.createRow(rowNum);
-			Integer seconds = worklogResource.getWorklogHours().get(instant);
-			String date = instant.getDayOfMonth() + " " + 
-					instant.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toString();
-			
-			createCellInSheet(row, 0, date, alignCellStyle);
-			
-			if (seconds != null) {
-				double hours = convertToHour(seconds);
-				createCellInSheet(row, 1, hours, numberStyle);
-			}
-			
-			instant = instant.plusDays(1);
-			rowNum ++;
-		}
-		
-		row = sheet.createRow(rowNum + 1);
-		createCellInSheet(row, 0, "SUM", alignCellStyle);
-		
-		cell = row.createCell(1);
-		
-		String sumFormula = createSumFormula(9, rowNum, 'B');
-		cell.setCellFormula(sumFormula);
-		cell.setCellStyle(numberStyle);
-		
-		cell = row.createCell(2);
-		
-		sumFormula = createSumFormula(9, rowNum, 'C');
-		cell.setCellFormula(sumFormula);
-		cell.setCellStyle(numberStyle);
-		
-		for (int i = 0; i < COLUMN_SIZE; i++) {
-			sheet.autoSizeColumn(i);
-		}
-		
-		return workbook;
+		return rowNum;
 	}
 	
 	private double convertToHour(Integer seconds) {

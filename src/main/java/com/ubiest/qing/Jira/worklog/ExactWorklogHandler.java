@@ -9,11 +9,11 @@ import com.ubiest.qing.Jira.entity.Worklog;
 
 import lombok.Data;
 @Data
-public class ExactWorklogService implements WorklogService{
+public class ExactWorklogHandler implements WorklogHandler{
 
 	private Map<LocalDate, Integer> worklogHours;
 	
-	public ExactWorklogService () {
+	public ExactWorklogHandler () {
 		worklogHours = new HashMap<LocalDate, Integer>();
 	}
 	

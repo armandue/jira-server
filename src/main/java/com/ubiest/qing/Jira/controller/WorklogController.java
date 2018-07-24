@@ -12,19 +12,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ubiest.qing.Jira.entity.User;
 import com.ubiest.qing.Jira.entity.Worklog;
 import com.ubiest.qing.Jira.excel.ExcelService;
 import com.ubiest.qing.Jira.exception.JiraHttpException;
 import com.ubiest.qing.Jira.http.JiraHttpClient;
+import com.ubiest.qing.Jira.service.AccountService;
 import com.ubiest.qing.Jira.worklog.WorklogFactory;
-import com.ubiest.qing.Jira.worklog.WorklogService;
+import com.ubiest.qing.Jira.worklog.WorklogHandler;
 import com.ubiest.qing.Jira.worklog.enums.WorklogModel;
 
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @CrossOrigin
 @RestController
+@RequestMapping("/worklogs")
 public class WorklogController {
 	
 	@Autowired
@@ -40,21 +40,30 @@ public class WorklogController {
 	@Autowired
 	private WorklogFactory worklogFactory;
 	
-	@RequestMapping(method=RequestMethod.POST, value="worklogfile")
+	@Autowired
+	AccountService accountService;
+	
+	@RequestMapping(method=RequestMethod.POST, value="/file")
 	public void getWorklogExcel(
 			@RequestParam(value="from") @DateTimeFormat(iso = ISO.DATE) LocalDate from,
 			@RequestParam(value="to", required=false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
-			@RequestBody(required=true) User user,
+			@RequestParam(required=false) String username,
+			@RequestParam(required=false) String bearerToken,
 			@RequestParam WorklogModel worklogModel,
 			HttpServletResponse response) throws IOException, JiraHttpException {
 		
+		if (worklogModel == WorklogModel.TEST) {
+			username = accountService.createTestUsername();
+			bearerToken = accountService.createTestBearToken();
+		}
+		
 		log.info("Generate worklog file for {} from {} to {} with model {}",
-				user.getUsername(), from, to, worklogModel);
+				username, from, to, worklogModel);
 		
-		response = configureExcel(from, user, response);
+		response = excelService.configureExcel(from, username, response);
 		
-		WorklogService worklogService = worklogFactory.getWorklogResource(worklogModel);
-		JiraHttpClient client = new JiraHttpClient(user);
+		WorklogHandler worklogService = worklogFactory.getWorklogResource(worklogModel);
+		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 			
 		if(to == null) {
 			to = LocalDate.now();
@@ -64,19 +73,26 @@ public class WorklogController {
 		
 		worklogService.addWorklogs(logs);
 
-		Workbook workbook = excelService.createWorklogExcelFile(worklogService, user, from, to);
+		Workbook workbook = excelService.createWorklogExcelFile(worklogService, username, from, to);
 		workbook.write(response.getOutputStream());
 	}
 
-	@RequestMapping(method=RequestMethod.POST, value="worklog")
+	@RequestMapping(method=RequestMethod.POST)
 	public Map<LocalDate, Integer> getWorklogs(
 			@RequestParam(value="from") @DateTimeFormat(iso = ISO.DATE) LocalDate from,
 			@RequestParam(value="to", required=false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
-			@RequestBody(required=true) User user) throws IOException, JiraHttpException {
+			@RequestParam(required=false) String username,
+			@RequestParam(required=false) String bearerToken) throws IOException, JiraHttpException {
 		
-		log.info("Retreive worklogs for {} from {} to {}", user.getUsername(), from, to);
-		WorklogService worklogService = worklogFactory.getWorklogResource(WorklogModel.EXACT);
-		JiraHttpClient client = new JiraHttpClient(user);
+		log.info("Retreive worklogs for {} from {} to {}", username, from, to);
+		
+		if (username == null || username.length() == 0) {
+			username = accountService.createTestUsername();
+			bearerToken = accountService.createTestBearToken();
+		}
+		
+		WorklogHandler worklogService = worklogFactory.getWorklogResource(WorklogModel.EXACT);
+		JiraHttpClient client = new JiraHttpClient(username, bearerToken);
 		
 		if(to == null) {
 			to = LocalDate.now();
@@ -87,12 +103,5 @@ public class WorklogController {
 		worklogService.addWorklogs(logs);
 		
 		return worklogService.getWorklogHours();
-	}
-	
-	private HttpServletResponse configureExcel(LocalDate startDate, User user, HttpServletResponse response) {
-		String fileName = user.getUsername() + "-" + startDate.getMonth().toString() + ".xlsx";
-		response.setContentType("application/vnd.ms-excel");
-		response.setHeader("Content-disposition", "attachment; filename=" + fileName);
-		return response;
 	}
 }
